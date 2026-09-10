@@ -139,7 +139,14 @@ bool Motion::moveForward(float distanceMM, float targetSpeedMMS) {
     }
 
     float yawError = startYaw - Sensors::getYaw();
-    float headingCorrection = headingPid.compute(0.0f, -yawError, dt);
+    float headingCorrection = 0.0f;
+    if (fabs(yawError) <= HEADING_DEADZONE_DEG) {
+      // Inside deadzone: clear controller state to prevent integral windup
+      headingPid.reset();
+      headingCorrection = 0.0f;
+    } else {
+      headingCorrection = headingPid.compute(0.0f, -yawError, dt);
+    }
 
     float centerCorrection = 0.0f;
     if (Sensors::wallLeft() && Sensors::wallRight()) {
@@ -163,12 +170,11 @@ bool Motion::moveForward(float distanceMM, float targetSpeedMMS) {
 
 bool Motion::turnInPlace(float deltaDegrees) {
   turnPid.reset();
-  velPidL.reset();
-  velPidR.reset();
 
   float startYaw = Sensors::getYaw();
   float targetYaw = startYaw + deltaDegrees;
-  // normalize target into [-180, 180)
+  
+  // Normalize target yaw to [-180, 180)
   while (targetYaw >= 180.0f) targetYaw -= 360.0f;
   while (targetYaw < -180.0f) targetYaw += 360.0f;
 
@@ -187,9 +193,10 @@ bool Motion::turnInPlace(float deltaDegrees) {
     if (dt < (MOTION_LOOP_DT_MS / 1000.0f)) continue;
     lastLoop = now;
 
+    // Direct IMU Yaw acquisition
     Sensors::updateIMU();
-
     float currentYaw = Sensors::getYaw();
+
     float error = targetYaw - currentYaw;
     while (error >= 180.0f) error -= 360.0f;
     while (error < -180.0f) error += 360.0f;
@@ -201,19 +208,25 @@ bool Motion::turnInPlace(float deltaDegrees) {
       withinToleranceSince = 0;
     }
 
-    Motors::updateVelocity(dt);
-    float turnSpeed = turnPid.compute(0.0f, -error, dt); // mm/s differential
-    // Clamp turnSpeed to per-wheel linear maximum to avoid asking the
-    // velocity PID for impossible wheel speeds.
-    if (turnSpeed > MAX_MOTOR_MMS) turnSpeed = MAX_MOTOR_MMS;
-    if (turnSpeed < -MAX_MOTOR_MMS) turnSpeed = -MAX_MOTOR_MMS;
-    float outL = velPidL.compute(-turnSpeed, Motors::getLeftVelocityMMS(), dt);
-    float outR = velPidR.compute(turnSpeed, Motors::getRightVelocityMMS(), dt);
+    // Direct MPU Feedback to PWM Command computation
+    // Error > 0 (needs CW rotation) -> Left PWM Positive, Right PWM Negative
+    float pwmCmd = turnPid.compute(0.0f, -error, dt);
 
-    Motors::setPWM((int16_t)outL, (int16_t)outR);
+    // Apply raw PWM directly to motors ( bypassing inner velocity PID loops )
+    Motors::setPWM((int16_t)(-pwmCmd), (int16_t)(pwmCmd));
+
+  #if DEBUG_PRINT_TURN
+    // Serial Plotter format: Time_ms, TargetYaw, CurrentYaw, YawError, PWM_L, PWM_R
+    Serial.print(millis()); Serial.print(",");
+    Serial.print(targetYaw); Serial.print(",");
+    Serial.print(currentYaw); Serial.print(",");
+    Serial.print(error); Serial.print(",");
+    Serial.print((int16_t)(-pwmCmd)); Serial.print(",");
+    Serial.println((int16_t)(pwmCmd));
+  #endif
   }
 
   stopMotion();
-  Sensors::resetYaw(targetYaw); // re-anchor to avoid slow drift accumulation
+  Sensors::resetYaw(targetYaw); // Re-anchor heading baseline to prevent drift stack
   return true;
 }

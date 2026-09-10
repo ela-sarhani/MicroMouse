@@ -54,8 +54,8 @@ enum ToFSensorIndex : uint8_t {
 // ============================================================================
 //  MOTOR DRIVER (TB6612FNG dual H-bridge)
 // ============================================================================
-#define PIN_MOTOR_L_AIN1            17
-#define PIN_MOTOR_L_AIN2            16
+#define PIN_MOTOR_L_AIN1            16
+#define PIN_MOTOR_L_AIN2            17
 #define PIN_MOTOR_L_PWM             19
 
 #define PIN_MOTOR_R_BIN1            25
@@ -117,20 +117,25 @@ enum ToFSensorIndex : uint8_t {
 #define VEL_PID_OUT_MAX               255.0f
 
 // Heading-hold PID (deg error -> differential wheel speed mm/s)
-#define HEADING_PID_KP                6.0f
-#define HEADING_PID_KI                0.05f
-#define HEADING_PID_KD                0.4f
+#define HEADING_PID_KP                4.8f
+#define HEADING_PID_KI                0.0f
+#define HEADING_PID_KD                0.10f
 #define HEADING_PID_OUT_MIN          -250.0f
 #define HEADING_PID_OUT_MAX           250.0f
+// Small deadzone (degrees) to ignore tiny IMU jitter and avoid PID chatter
+#define HEADING_DEADZONE_DEG          0.5f
 
 // In-place turn PID (deg error -> wheel speed mm/s, opposite signs)
-#define TURN_PID_KP                   4.5f
-#define TURN_PID_KI                   0.02f
-#define TURN_PID_KD                   0.25f
-#define TURN_PID_OUT_MIN             -220.0f
-#define TURN_PID_OUT_MAX              220.0f
+#define TURN_PID_KP                   3.5f
+#define TURN_PID_KI                   0.00f
+#define TURN_PID_KD                   0.18f
+#define TURN_PID_OUT_MIN             -250.0f
+#define TURN_PID_OUT_MAX              250.0f
 #define TURN_DONE_TOLERANCE_DEG       1.5f
 #define TURN_DONE_STABLE_MS           80
+
+// Enable detailed CSV debug output from turnInPlace (prints per-loop values)
+#define DEBUG_PRINT_TURN              1
 
 // Wall-centering PID (mm side error -> heading correction deg)
 #define WALL_CENTER_KP                0.06f
