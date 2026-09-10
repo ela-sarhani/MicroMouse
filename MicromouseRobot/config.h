@@ -54,12 +54,12 @@ enum ToFSensorIndex : uint8_t {
 // ============================================================================
 //  MOTOR DRIVER (TB6612FNG dual H-bridge)
 // ============================================================================
-#define PIN_MOTOR_L_AIN1            16
-#define PIN_MOTOR_L_AIN2            17
+#define PIN_MOTOR_L_AIN1            17
+#define PIN_MOTOR_L_AIN2            16
 #define PIN_MOTOR_L_PWM             19
 
-#define PIN_MOTOR_R_BIN1            25
-#define PIN_MOTOR_R_BIN2            26
+#define PIN_MOTOR_R_BIN1            26
+#define PIN_MOTOR_R_BIN2            25
 #define PIN_MOTOR_R_PWM             14
 
 #define PIN_MOTOR_STBY              27
@@ -110,20 +110,20 @@ enum ToFSensorIndex : uint8_t {
 //  MOTION TUNING
 // ============================================================================
 // Velocity control loop (per-wheel, PWM output from mm/s error)
-#define VEL_PID_KP                   1.85f
-#define VEL_PID_KI                   30.8f
+#define VEL_PID_KP                   2.8f
+#define VEL_PID_KI                   0.03f
 #define VEL_PID_KD                   0.0f
 #define VEL_PID_OUT_MIN              -255.0f
 #define VEL_PID_OUT_MAX               255.0f
 
 // Heading-hold PID (deg error -> differential wheel speed mm/s)
-#define HEADING_PID_KP                4.8f
+#define HEADING_PID_KP                3.0f
 #define HEADING_PID_KI                0.0f
 #define HEADING_PID_KD                0.10f
-#define HEADING_PID_OUT_MIN          -250.0f
-#define HEADING_PID_OUT_MAX           250.0f
+#define HEADING_PID_OUT_MIN          -100.0f
+#define HEADING_PID_OUT_MAX           100.0f
 // Small deadzone (degrees) to ignore tiny IMU jitter and avoid PID chatter
-#define HEADING_DEADZONE_DEG          0.5f
+#define HEADING_DEADZONE_DEG          0.2f
 
 // In-place turn PID (deg error -> wheel speed mm/s, opposite signs)
 #define TURN_PID_KP                   3.5f
@@ -135,7 +135,7 @@ enum ToFSensorIndex : uint8_t {
 #define TURN_DONE_STABLE_MS           80
 
 // Enable detailed CSV debug output from turnInPlace (prints per-loop values)
-#define DEBUG_PRINT_TURN              1
+#define DEBUG_PRINT_HEADING              1
 
 // Wall-centering PID (mm side error -> heading correction deg)
 #define WALL_CENTER_KP                0.06f
@@ -152,6 +152,9 @@ enum ToFSensorIndex : uint8_t {
 // typical load). Set after running a calibration step; prevents commanding
 // unattainable targets (e.g. 200 mm/s on this robot when max ~155-170 mm/s).
 #define MAX_MOTOR_MMS                 155.0f
+// Open-loop feedforward gain used to convert mm/s command to a baseline PWM.
+// Velocity PID then corrects the residual error around this baseline.
+#define VEL_PWM_FF_PER_MMS          (PWM_MAX_DUTY / MAX_MOTOR_MMS)
 
 #define MOTION_LOOP_DT_MS             5     // control loop period (ms)
 #define CELL_MOVE_TIMEOUT_MS           3000

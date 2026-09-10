@@ -109,8 +109,6 @@ bool Motion::moveForward(float distanceMM, float targetSpeedMMS) {
   headingPid.reset();
   wallCenterPid.reset();
 
-  // Clamp commanded speed to physical motor capability to avoid perpetual
-  // saturation of the velocity PID when the setpoint is unreachable.
   if (targetSpeedMMS > MAX_MOTOR_MMS) targetSpeedMMS = MAX_MOTOR_MMS;
 
   float startYaw = Sensors::getYaw();
@@ -125,12 +123,12 @@ bool Motion::moveForward(float distanceMM, float targetSpeedMMS) {
 
     unsigned long now = micros();
     float dt = (now - lastLoop) / 1000000.0f;
-    if (dt < (MOTION_LOOP_DT_MS / 1000.0f)) continue; // hold to fixed loop rate
+    if (dt < (MOTION_LOOP_DT_MS / 1000.0f)) continue;
     lastLoop = now;
 
+    // 1. Synchronize Sensors & Motor Encoders
     Sensors::updateIMU();
-    Sensors::update();
-    Motors::updateVelocity(dt); // Must be updated before PID compute!
+    Motors::updateVelocity(dt);
 
     float remaining = distanceMM - Motors::getAverageDistanceMM();
     float speedCmd = targetSpeedMMS;
@@ -138,30 +136,52 @@ bool Motion::moveForward(float distanceMM, float targetSpeedMMS) {
       speedCmd = max(80.0f, targetSpeedMMS * (remaining / 60.0f));
     }
 
-    float yawError = startYaw - Sensors::getYaw();
+    // 2. MPU Gyro Yaw Error Calculation
+    float currentYaw = Sensors::getYaw();
+    float yawError = startYaw - currentYaw;
+    
+    while (yawError >= 180.0f) yawError -= 360.0f;
+    while (yawError < -180.0f) yawError += 360.0f;
+
     float headingCorrection = 0.0f;
     if (fabs(yawError) <= HEADING_DEADZONE_DEG) {
-      // Inside deadzone: clear controller state to prevent integral windup
       headingPid.reset();
       headingCorrection = 0.0f;
     } else {
+      // Positive error (drifted right) -> output trim to pull left
       headingCorrection = headingPid.compute(0.0f, -yawError, dt);
     }
 
-    float centerCorrection = 0.0f;
-    if (Sensors::wallLeft() && Sensors::wallRight()) {
-      float sideError = (float)Sensors::getR() - (float)Sensors::getL();
-      centerCorrection = wallCenterPid.compute(0.0f, sideError, dt);
-    }
+    // Force side wall correction to 0.0 to isolate MPU + Encoder interaction
+    float centerCorrection = 0.0f; 
 
     float trim = headingCorrection + centerCorrection;
-    float targetL = max(0.0f, speedCmd - trim);
-    float targetR = max(0.0f, speedCmd + trim);
 
-    float outL = velPidL.compute(targetL, Motors::getLeftVelocityMMS(), dt);
-    float outR = velPidR.compute(targetR, Motors::getRightVelocityMMS(), dt);
+    // 3. Dual-Loop Target Generation
+    // Left wheel speeds up, Right wheel slows down (or vice versa) based on Yaw Error
+    float targetL = speedCmd - trim;
+    float targetR = speedCmd + trim;
+
+    // 4. Encoder Inner-Loop Velocity Control
+    float measuredL = Motors::getLeftVelocityMMS();
+    float measuredR = Motors::getRightVelocityMMS();
+
+    float outL = velPidL.compute(targetL, measuredL, dt);
+    float outR = velPidR.compute(targetR, measuredR, dt);
 
     Motors::setPWM((int16_t)outL, (int16_t)outR);
+
+  #if DEBUG_PRINT_HEADING
+    // CSV format for Serial Plotter: Time_ms, TargetYaw, CurrentYaw, YawError, MeasVelL, MeasVelR, TargetVelL, TargetVelR
+    Serial.print(millis()); Serial.print(",");
+    Serial.print(startYaw); Serial.print(",");
+    Serial.print(currentYaw); Serial.print(",");
+    Serial.print(yawError); Serial.print(",");
+    Serial.print(measuredL); Serial.print(",");
+    Serial.print(measuredR); Serial.print(",");
+    Serial.print(targetL); Serial.print(",");
+    Serial.println(targetR);
+  #endif
   }
 
   stopMotion();
