@@ -130,33 +130,44 @@ bool Motion::moveForward(float distanceMM, float targetSpeedMMS) {
     Sensors::updateIMU();
     Motors::updateVelocity(dt);
 
+    float currentYaw = Sensors::getYaw();
+
     float remaining = distanceMM - Motors::getAverageDistanceMM();
     float speedCmd = targetSpeedMMS;
     if (remaining < 60.0f) {
       speedCmd = max(80.0f, targetSpeedMMS * (remaining / 60.0f));
     }
 
-    // 2. MPU Gyro Yaw Error Calculation
-    float currentYaw = Sensors::getYaw();
-    float yawError = startYaw - currentYaw;
+    // // 2. MPU Gyro Yaw Error Calculation
+    // float currentYaw = Sensors::getYaw();
+    // float yawError = startYaw - currentYaw;
     
-    while (yawError >= 180.0f) yawError -= 360.0f;
-    while (yawError < -180.0f) yawError += 360.0f;
+    // while (yawError >= 180.0f) yawError -= 360.0f;
+    // while (yawError < -180.0f) yawError += 360.0f;
 
-    float headingCorrection = 0.0f;
-    if (fabs(yawError) <= HEADING_DEADZONE_DEG) {
-      headingPid.reset();
-      headingCorrection = 0.0f;
-    } else {
-      // Positive error (drifted right) -> output trim to pull left
-      headingCorrection = headingPid.compute(0.0f, -yawError, dt);
-    }
+    // float headingCorrection = 0.0f;
+    // if (fabs(yawError) <= HEADING_DEADZONE_DEG) {
+    //   headingPid.reset();
+    //   headingCorrection = 0.0f;
+    // } else {
+    //   // Positive error (drifted right) -> output trim to pull left
+    //   headingCorrection = headingPid.compute(0.0f, -yawError, dt);
+    // }
 
-    // Force side wall correction to 0.0 to isolate MPU + Encoder interaction
-    float centerCorrection = 0.0f; 
+    // // Force side wall correction to 0.0 to isolate MPU + Encoder interaction
+    // float centerCorrection = 0.0f; 
 
-    float trim = headingCorrection + centerCorrection;
+    // float trim = headingCorrection + centerCorrection;
+    // MPU COMPLETELY DISABLED FOR TEST
+    float yawError = startYaw - currentYaw;
 
+    while (yawError >= 180.0f)
+        yawError -= 360.0f;
+
+    while (yawError < -180.0f)
+        yawError += 360.0f;
+
+    float trim = 0.0f;
     // 3. Dual-Loop Target Generation
     // Left wheel speeds up, Right wheel slows down (or vice versa) based on Yaw Error
     float targetL = speedCmd - trim;

@@ -1,28 +1,55 @@
 #include <Arduino.h>
+
 #include "Motors.h"
 #include "Sensors.h"
 #include "PIDController.h"
 #include "config.h"
 
-uint32_t lastRunTime = 0;
-
-void setup() {
+void setup()
+{
     Serial.begin(115200);
-    Sensors::init();
-    Sensors::calibrateGyro();
+    delay(1000);
+
+    Serial.println();
+    Serial.println("================================");
+    Serial.println(" MPU + ENCODER STRAIGHT TEST");
+    Serial.println("================================");
+
+    // Initialize hardware
     Motors::init();
+    Sensors::init();
     Motion::init();
 
-    Serial.println("Time_ms,TargetYaw,CurrentYaw,YawError,MeasVelL,MeasVelR,TargetVelL,TargetVelR");
-    lastRunTime = millis();
+    delay(1000);
+
+    Serial.println("Keep robot straight on the floor.");
+    Serial.println("Starting in 3 seconds...");
+
+    delay(1000);
+    Serial.println("2...");
+    delay(1000);
+    Serial.println("1...");
+    delay(1000);
+
+    Serial.println("START");
+
+    // 1 meter forward
+    bool result = Motion::moveForward(1000.0f, 80.0f);
+
+    Motors::stop();
+
+    Serial.println();
+    Serial.println("================================");
+
+    if (result)
+        Serial.println("MOVE SUCCESS");
+    else
+        Serial.println("MOVE FAILED");
+
+    Serial.println("================================");
 }
 
-void loop() {
-    uint32_t now = millis();
-
-    // Drive forward 1000 mm every 5 seconds
-    if (now - lastRunTime >= 5000) {
-        lastRunTime = now;
-        Motion::moveForward(1000.0f, 150.0f);
-    }
+void loop()
+{
+    // Nothing
 }

@@ -190,7 +190,7 @@ void Motors::updateVelocity(float dt) {
   }
 
   float rawVelL = (deltaL * MM_PER_ENCODER_COUNT) / dt;
-  float rawVelR = (deltaR * MM_PER_ENCODER_COUNT) / dt;
+  float rawVelR = (-deltaR * MM_PER_ENCODER_COUNT) / dt;
 
   // Exponential Moving Average (EMA) Low-Pass Filter (alpha = 0.35)
   const float alpha = 0.35f;
@@ -202,7 +202,7 @@ float Motors::getLeftVelocityMMS()  { return velocityL_mms; }
 float Motors::getRightVelocityMMS() { return velocityR_mms; }
 
 float Motors::getLeftDistanceMM()  { return getLeftCount()  * MM_PER_ENCODER_COUNT; }
-float Motors::getRightDistanceMM() { return getRightCount() * MM_PER_ENCODER_COUNT; }
+float Motors::getRightDistanceMM() { return -getRightCount() * MM_PER_ENCODER_COUNT; }
 float Motors::getAverageDistanceMM() {
   return (getLeftDistanceMM() + getRightDistanceMM()) * 0.5f;
 }
